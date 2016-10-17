@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>Babylon.js sample code</title>
+        <!-- Babylon.js -->
+        <script src="http://www.babylonjs.com/hand.minified-1.2.js"></script>
+        <script src="http://www.babylonjs.com/cannon.js"></script>
+        <script src="http://www.babylonjs.com/oimo.js"></script>
+        <script src="http://www.babylonjs.com/babylon.js"></script>
+        <script src="http://www.babylonjs.com/SandBox/babylon.stlFileLoader.js"></script>
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+        </style>
+    </head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+        // https://doc.babylonjs.com/overviews/Playing_sounds_and_music#creating-an-ambient-sound-or-music 
+        // avconv -i a.mp4 -an k2-nosound.webm
+        // avconv -i a.mp4 -vn k2-nosound.webm
+        // https://doc.babylonjs.com/tutorials/Cameras,_Mesh_Collisions_and_Gravity
+        // https://msdn.microsoft.com/en-us/magazine/mt595753.aspx
+				// https://doc.babylonjs.com/tutorials/Lights
+        var canvas = document.getElementById("renderCanvas");
+        var engine = new BABYLON.Engine(canvas, true);
+
+        var createScene = function () {
+        
+          // This creates a basic Babylon Scene object (non-mesh)
+          var scene = new BABYLON.Scene(engine);
+          scene.gravity = new BABYLON.Vector3(0, -9.81, 0);
+					scene.collisionsEnabled = true;
+          
+          // This creates and positions a free camera (non-mesh)
+          // This targets the camera to scene origin
+          // This attaches the camera to the canvas
+          var camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+          camera.attachControl(canvas);
+          camera.applyGravity = true;
+					camera.checkCollisions = true;
+					camera.ellipsoid = new BABYLON.Vector3(1,1,1);
+					
+          
+          // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
+          // Default intensity is 1. Let's dim the light a small amount
+          var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+          light.intensity = 0.1;
+
+          var light2 = new BABYLON.SpotLight(
+              "light2",
+              new BABYLON.Vector3(0,3,24),
+              new BABYLON.Vector3(0,0,-1),
+              Math.PI,
+              8,
+              scene);
+light2.diffuse = new BABYLON.Color3(1, 1, 1);
+light2.specular = new BABYLON.Color3(0, 0, 0);
+light2.intensity = 2;
+//scene.debugLayer.show(true);
+          
+          // Move the plane upward 1/2 its height == 1
+          var plane = BABYLON.Mesh.CreatePlane("plane1",5.0, scene,false);
+          plane.position.y = 3.2;
+
+					plane.position.z = 20.2;
+          plane.rotation.x = -Math.PI/40;
+					plane.rotation.y = Math.PI;
+          //plane.scaling.x = 1.5;
+
+          camera.setTarget(plane.position.clone());
+					// create a built-in "ground" shape; its constructor takes the same 5 params as the sphere's one
+    			var ground = BABYLON.Mesh.CreateGround('ground1', 90, 90, 2, scene);
+					ground.checkCollisions = true;
+          
+          var mat          = new BABYLON.StandardMaterial("mat", scene);
+          var videoTexture = new BABYLON.VideoTexture("video", ["../textures/k2-nosound.webm"], scene);
+          mat.diffuseTexture = videoTexture;
+          mat.backFaceCulling = false; // two sides
+          plane.material      = mat;
+
+          videoTexture._autoLaunch = false; // start paused
+
+          var godrays = new BABYLON.VolumetricLightScatteringPostProcess(
+              'godrays',
+              1.0,
+              camera,
+              plane,
+              100,
+              BABYLON.Texture.BILINEAR_SAMPLINGMODE,
+              engine,
+              false
+          );
+
+					godrays.exposure = 0.1;
+					godrays.decay = 0.96815;
+					godrays.weight = 0.98767;
+					godrays.density = 0.926;
+
+          var music = new BABYLON.Sound("music", "../sounds/k2-sound.wav",
+              scene, function() { videoTexture.video.play(); music.play(); }, { loop: true, autoplay: false, spatialSound: true });
+          music.attachToMesh(plane);
+          
+          plane.actionManager = new BABYLON.ActionManager(scene);
+          plane.actionManager.registerAction(
+              new BABYLON.ExecuteCodeAction(
+                BABYLON.ActionManager.OnPickTrigger,
+                function () {
+                  if(videoTexture.video.paused) {
+                    videoTexture.video.play();
+                    music.play();
+                  } else {
+                    music.pause();
+                    videoTexture.video.pause();
+                  }
+          }));
+
+
+          BABYLON.SceneLoader.Append("../textures/","tvblend3.stl",scene, function(){
+						var a = scene.getMeshesByID("Exported");
+						a[0].position.z = 22;
+						a[0].rotation.y = Math.PI/2;
+						console.log(a);
+					});
+          
+          return scene;
+        
+        };
+        
+        var scene = createScene();
+
+        engine.runRenderLoop(function () {
+          scene.render();
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+          engine.resize();
+        });
+    </script>
+</body>
+</html>

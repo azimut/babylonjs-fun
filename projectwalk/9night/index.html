@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>Babylon.js sample code</title>
+        <!-- Babylon.js -->
+        <script src="http://www.babylonjs.com/hand.minified-1.2.js"></script>
+        <script src="http://www.babylonjs.com/cannon.js"></script>
+        <script src="http://www.babylonjs.com/oimo.js"></script>
+        <script src="http://www.babylonjs.com/babylon.js"></script>
+        <script src="http://www.babylonjs.com/SandBox/babylon.stlFileLoader.js"></script>
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+        </style>
+    </head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+        // https://doc.babylonjs.com/overviews/Playing_sounds_and_music#creating-an-ambient-sound-or-music 
+        // avconv -i a.mp4 -an k2-nosound.webm
+        // avconv -i a.mp4 -vn k2-nosound.webm
+        // https://doc.babylonjs.com/tutorials/Cameras,_Mesh_Collisions_and_Gravity
+        // https://msdn.microsoft.com/en-us/magazine/mt595753.aspx
+				// https://doc.babylonjs.com/tutorials/Lights
+        
+        // videotexures are weird, they have to be lighted to be showed 
+        // however they will only receive light from one side (i think)
+        // so we flip the video, and the plane to make it work
+        // avconf -i a.mp4 -an -vf hflip lali.webm
+        /// cast shadows is expensive and not achieve the result i want
+
+				// https://doc.babylonjs.com/tutorials/Environment
+        // http://iwearshorts.com/blog/webgl-skybox-texture-mapping/
+
+        // http://stackoverflow.com/questions/7771975/imagemagick-create-a-png-file-which-is-just-a-solid-rectangle
+        // convert -size 600x600 xc:#000000 w_ny.jpg
+
+			  // 18413  mv left55.jpg w_nx.jpg
+				// 18414  mv back55.jpg w_nz.jpg
+				// 18409  mv right55.jpg w_px.jpg
+				// 18411  mv front55.jpg w_pz.jpg
+
+				// http://www.imagemagick.org/Usage/color_mods/
+				// convert  test.png  -colorspace Gray   gray_colorspace.png
+ 
+        var canvas = document.getElementById("renderCanvas");
+        var engine = new BABYLON.Engine(canvas, true);
+
+        var createScene = function () {
+          var FLOATWITHME = 5;
+        
+          // This creates a basic Babylon Scene object (non-mesh)
+          var scene = new BABYLON.Scene(engine);
+          scene.gravity = new BABYLON.Vector3(0, -9.81, 0);
+					scene.collisionsEnabled = true;
+
+    			scene.clearColor = new BABYLON.Color4(0,0,0,0);
+					scene.ambientColor = new BABYLON.Color3(0, 0, 0);          
+
+          // This creates and positions a free camera (non-mesh)
+          // This targets the camera to scene origin
+          // This attaches the camera to the canvas
+          var camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -10), scene);
+          camera.attachControl(canvas);
+          camera.applyGravity = true;
+					camera.checkCollisions = true;
+					camera.ellipsoid = new BABYLON.Vector3(3,3,3);
+
+					var clouds = BABYLON.Mesh.CreateBox('clouds',200,scene,false,BABYLON.Mesh.BACKSIDE);
+					var materialc = new BABYLON.StandardMaterial('cloudst',scene);
+					materialc.alpha = .9;
+					materialc.diffuseColor = new BABYLON.Color3(0,0,0);
+					clouds.material = materialc;
+					
+				
+    			// Skybox
+    			var skybox = BABYLON.Mesh.CreateBox("skyBox", 400.0, scene);
+    			var skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
+    			skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("../textures/zip2/gray/p", scene);
+    			skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+    			skyboxMaterial.diffuseColor = new BABYLON.Color3(0,0,0);
+    			skyboxMaterial.specularColor = new BABYLON.Color3(0,0,0);
+    			skyboxMaterial.disableLighting = true;
+    			skyboxMaterial.backFaceCulling = false;
+    			skybox.material = skyboxMaterial;	
+					//skybox.infiniteDistance = true; // move cubemap with camera
+          
+          // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
+          // Default intensity is 1. Let's dim the light a small amount
+    			var hlight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+   				hlight.intensity = .01;
+
+//        var light = new BABYLON.DirectionalLight(
+//            "dlight",
+//            new BABYLON.Vector3(0,-1,0),
+//            scene
+//            );
+//        light.position.y = 1000;
+//				light.intensity = .1;
+//				light.diffuse = new BABYLON.Color3(1, 1, 1);
+//				light.specular = new BABYLON.Color3(0, 0, 0);
+
+          var light2 = new BABYLON.SpotLight(
+              "light2",
+              new BABYLON.Vector3(0,3 + FLOATWITHME,24),
+              new BABYLON.Vector3(0,0,-1),
+              Math.PI,
+              8,
+              scene);
+					light2.diffuse = new BABYLON.Color3(1, 1, 1);
+					light2.specular = new BABYLON.Color3(0, 0, 0);
+					light2.intensity = 2;
+
+          // shadows
+          //var shadowGenerator = new BABYLON.ShadowGenerator(1024, light);
+          
+          // Move the plane upward 1/2 its height == 1
+          var plane = BABYLON.Mesh.CreatePlane("plane1",5.0, scene,false);
+          plane.position.y = 3.2 + FLOATWITHME;
+
+					plane.position.z = 20.2;
+          plane.rotation.x = -Math.PI/40;
+					plane.rotation.y = Math.PI;
+          //plane.scaling.x = 1.5;
+
+          camera.setTarget(plane.position.clone());
+					// create a built-in "ground" shape; its constructor takes the same 5 params as the sphere's one
+    			//var ground = BABYLON.Mesh.CreateGround('ground1', 100, 100, 10, scene);
+					//ground.checkCollisions = true;
+          //ground.isVisible = false; // ...not visible
+					//ground.receiveShadows = true; // shadows
+
+					var box = BABYLON.Mesh.CreateBox("box", 100, scene,false,BABYLON.Mesh.BACKSIDE);
+					box.position.y = 50;
+					box.isVisible = false;
+					box.checkCollisions = true
+
+					var mat          = new BABYLON.StandardMaterial("mat", scene);
+					var videoTexture = new BABYLON.VideoTexture("video", ["../textures/lali.webm"], scene);
+					mat.diffuseTexture = videoTexture;
+					mat.backFaceCulling = false; // two sides
+					plane.material      = mat;
+
+					videoTexture._autoLaunch = false; // start paused
+
+          var godrays = new BABYLON.VolumetricLightScatteringPostProcess(
+              'godrays',
+              1.0,
+              camera,
+              plane,
+              100,
+              BABYLON.Texture.BILINEAR_SAMPLINGMODE,
+              engine,
+              false
+          );
+
+					godrays.exposure = 0.1;
+					godrays.decay = 0.96815;
+					godrays.weight = 0.98767;
+					godrays.density = 0.926;
+
+          var music = new BABYLON.Sound("music", "../sounds/lali.wav",
+              scene, function() { videoTexture.video.play(); music.play(); }, { loop: true, autoplay: false, spatialSound: true });
+          music.attachToMesh(plane);
+          
+          plane.actionManager = new BABYLON.ActionManager(scene);
+          plane.actionManager.registerAction(
+              new BABYLON.ExecuteCodeAction(
+                BABYLON.ActionManager.OnPickTrigger,
+                function () {
+                  if(videoTexture.video.paused) {
+                    videoTexture.video.play();
+                    music.play();
+                  } else {
+                    music.pause();
+                    videoTexture.video.pause();
+                  }
+          }));
+
+
+          BABYLON.SceneLoader.Append("../textures/","tvblend3.stl",scene, function(){
+						var a = scene.getMeshesByID("Exported");
+						a[0].position.z = 22;
+            a[0].position.y = 0 + FLOATWITHME;
+						a[0].rotation.y = Math.PI/2;
+            //shadowGenerator.getShadowMap().renderList.push(a[0]);
+					});
+          
+          return scene;
+        
+        };
+        
+        var scene = createScene();
+
+        engine.runRenderLoop(function () {
+          scene.render();
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+          engine.resize();
+        });
+    </script>
+</body>
+</html>
